@@ -2,18 +2,18 @@
 xuanji 命令行工具
 
 用法:
-  xuanji init [项目名]     创建新项目
-  xuanji run               启动运行时
+  xuanji start             启动守护进程
+  xuanji stop              停止守护进程
   xuanji status            查看状态
-  xuanji skill list         列出已安装Skill
-  xuanji skill install <dir> 从目录安装Skill
-  xuanji skill create <name> 生成Skill模板
-  xuanji mcp list           列出MCP Server
-  xuanji mcp test <name>    测试MCP Server连接
+  xuanji version           查看版本
+  xuanji agent "任务描述"   派发任务给AI Agent
+  xuanji task <ID>         查看任务详情
+  xuanji tasks             查看任务列表
+  xuanji persona list      列出人格
+  xuanji skill list        列出已安装Skill
+  xuanji mcp list          列出MCP Server
   xuanji secret set <name>  设置密钥
-  xuanji secret list        列出密钥名
-  xuanji audit list         查看审计日志
-  xuanji create <type> <name>  脚手架生成
+  xuanji init [项目名]      创建新项目
 """
 
 import io
@@ -123,23 +123,45 @@ class HelloAgent(AgentPlugin):
 
 
 def cmd_run(args):
-    """启动运行时"""
-    from xuanji.runtime import Runtime
-    config = args[0] if args else "config.toml"
-    runtime = Runtime(config=config)
-    runtime.run()
+    """启动运行时（等同于 xuanji start）"""
+    from xuanji.daemon import cmd_start
+    cmd_start(args)
+
+
+def cmd_start(args):
+    """启动守护进程"""
+    from xuanji.daemon import cmd_start as daemon_start
+    daemon_start(args)
+
+
+def cmd_stop(args):
+    """停止守护进程"""
+    from xuanji.daemon import cmd_stop as daemon_stop
+    daemon_stop(args)
 
 
 def cmd_status(args):
-    """查看状态"""
-    import importlib.metadata
-    try:
-        version = importlib.metadata.version('xuanji')
-    except Exception:
-        version = 'dev'
-    print("📊 xuanji Status")
-    print(f"   版本: {version}")
-    print(f"   状态: 开发中")
+    """查看状态（优先守护进程状态，兼容旧版）"""
+    from xuanji.daemon import cmd_status as daemon_status
+    daemon_status(args)
+
+
+def cmd_agent(args):
+    """派发任务给Agent"""
+    from xuanji.daemon import cmd_agent as daemon_agent
+    daemon_agent(args)
+
+
+def cmd_task(args):
+    """查看任务详情"""
+    from xuanji.daemon import cmd_task as daemon_task
+    daemon_task(args)
+
+
+def cmd_tasks(args):
+    """查看任务列表"""
+    from xuanji.daemon import cmd_tasks as daemon_tasks
+    daemon_tasks(args)
 
 
 def cmd_version(args):
@@ -1172,10 +1194,15 @@ def cmd_persona(args):
 COMMANDS = {
     "init": cmd_init,
     "run": cmd_run,
+    "start": cmd_start,
+    "stop": cmd_stop,
     "status": cmd_status,
     "version": cmd_version,
     "--version": cmd_version,
     "-v": cmd_version,
+    "agent": cmd_agent,
+    "task": cmd_task,
+    "tasks": cmd_tasks,
     "skill": cmd_skill,
     "mcp": cmd_mcp,
     "secret": cmd_secret,
