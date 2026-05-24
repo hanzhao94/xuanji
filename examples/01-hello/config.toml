@@ -1,0 +1,9 @@
+# 最简示例 — Hello World Agent
+
+[runtime]
+name = "Hello Agent"
+
+[llm]
+ollama = "localhost"
+# 或者用API:
+# deepseek = "sk-xxx"

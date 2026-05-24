@@ -1,0 +1,11 @@
+# 桌面操作Agent示例
+
+[runtime]
+name = "Desktop Worker"
+
+[llm]
+ollama = "localhost"
+# deepseek = "sk-xxx"
+
+[security]
+mode = "standard"

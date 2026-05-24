@@ -1,0 +1,177 @@
+# === Python ===
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+*.egg
+
+# === Build artifacts ===
+build/
+dist/
+*.obj
+*.o
+*.so
+*.dylib
+*.exe
+*.lib
+*.a
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.log
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.bak
+
+# === Node.js ===
+node_modules/
+package-lock.json
+
+# === OpenClaw workspace (NOT part of XuanJi) ===
+AGENTS.md
+SOUL.md
+IDENTITY.md
+USER.md
+TOOLS.md
+MEMORY.md
+HEARTBEAT.md
+.clawhub/
+.openclaw/
+.clawhub.json
+skills/
+nmm_schema/
+nmm_schema_bridge.py
+memory/
+memory_archive/
+data/
+logs/
+reports/
+research/
+scripts/
+context_cache/
+context_optimizer.py
+heartbeat_patrol.py
+memory_auto_sync.py
+nmm_bridge.py
+session_summarizer.py
+daemon_client.py
+start_memory_api.py
+memory_api_server.py
+http_service_memory_routes.py
+
+# === Temporary / scratch ===
+temp_*
+*.tmp
+*.history
+abc.history
+stats.json
+_recycle_bin_*/
+project_backup/
+content_output/
+claw_code_analysis/
+multi_agent_experiment/
+bilibili_plan/
+study_dungeon/
+study_games/
+
+# === Images / media (NOT XuanJi source) ===
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.webp
+*.mp4
+*.mp3
+*.wav
+*.flac
+
+# === Ad-hoc scripts ===
+apply_sdf_patch.py
+audit_eda.py
+audit_report*.txt
+audit_stderr.txt
+brain_audit.py
+check*.py
+chinese_tokenizer.py
+copy_all.py
+copy_physics.ps1
+count*.py
+count*.ps1
+create_mains.py
+decouple*.py
+dedup_replace.py
+demo*.py
+demo*.bat
+do_copy.ps1
+eda_cleanup.ps1
+eda_coupling.py
+eda_scan*.ps1
+extract_*.py
+extract_*.js
+extract_*.tcl
+fix_*.py
+fix_*.ps1
+fix_*.sh
+fix_*.js
+final_verify.py
+impl_handlers.py
+inverted_index_search.py
+new_drawBattle.js
+or_configure*.sh
+patch_*.py
+rebuild_openroad.py
+relationship_graph.py
+scan_siyuan.py
+search_novel.*
+snake_game.py
+step2_init.py
+temp_check.*
+verify_build.py
+
+# === Reports ===
+core_audit_report.txt
+
+# === Non-XuanJi shell ===
+build_system_opensta.sh
+fix_and_build.sh
+lvs_ihp130.sh
+net_test.sh
+sdf_test.tcl
+
+# === Misc ===
+package.json
+AI_*.txt
+quantum_drug.md
+coffee_alcohol_*.md
+cat_facts.md
+curriculum_result.png
+
+# === Test files (not for release) ===
+tests/_*.py
+tests/hell_test_*.py
+tests/test_architecture.py
+tests/test_three_levels_v*.py
+tests/test_level3.py
+tests/agent_memory.json
+tests/test_hell*.py
+tests/test_three_levels.py
+tests/test_ual.py
+
+# === Work log ===
+work_log/
+
+# === Backup files ===
+*.bak.*
+cli_v2.py
+
+# === Duplicate xuanji/ root dir (source is in python/xuanji/) ===
+/xuanji/
+
+# === Standalone scripts ===
+nmm_search_optimized.py

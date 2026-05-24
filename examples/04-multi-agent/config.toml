@@ -1,0 +1,17 @@
+# 04-multi-agent — 多Agent协作示例
+
+[llm]
+dashscope = "sk-your-api-key"
+
+# 多Agent配置
+[agents]
+# 研究Agent - 负责搜索和整理信息
+researcher = { type = "researcher", model = "dashscope" }
+# 写作Agent - 负责撰写和总结
+writer = { type = "writer", model = "dashscope" }
+# 审核Agent - 负责质量把关
+reviewer = { type = "reviewer", model = "dashscope" }
+
+# 消息总线配置
+[bus]
+mode = "native"  # native 使用C底座, python 使用纯Python实现

@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel", "cmake>=3.16"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xuanji"
+version = "1.0.4"
+description = "Embodied AI Multi-Agent Framework - AI that actually uses your computer"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+keywords = ["agent", "ai", "embodied", "multi-agent", "framework"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: C",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Operating System :: OS Independent",
+]
+
+# Zero mandatory dependencies for core
+# Optional dependencies installed on demand
+dependencies = []
+
+[project.optional-dependencies]
+# LLM backends
+openai = ["openai>=1.0"]
+anthropic = ["anthropic>=0.20"]
+dashscope = ["dashscope>=1.0"]
+
+# Embodied engine
+perception = ["mss>=9.0", "Pillow>=10.0"]
+hands = ["pyautogui>=0.9"]
+voice = ["openai-whisper>=20230918"]
+browser = ["playwright>=1.40"]
+ocr = ["pytesseract>=0.3"]
+
+# Communication channels
+telegram = ["python-telegram-bot>=20.0"]
+discord = ["discord.py>=2.3"]
+
+# Memory backend
+sqlite = []
+vector = ["chromadb>=0.4"]
+
+# Full installation
+all = [
+    "openai>=1.0",
+    "mss>=9.0",
+    "Pillow>=10.0",
+    "pyautogui>=0.9",
+    "playwright>=1.40",
+]
+
+[project.scripts]
+xuanji = "xuanji.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["python"]

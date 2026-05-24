@@ -1,0 +1,43 @@
+# 玄机 (XuanJi) 主配置
+# Ollama本地模型 + 多Agent配置
+
+[runtime]
+name = "XuanJi-LingMing"
+work_dir = "D:\\openagent\\workspace"
+
+# === LLM 配置 ===
+[llm]
+# 本地 Ollama (默认)
+ollama = "localhost"
+
+# 备用 LLM (可选，取消注释启用)
+# deepseek = "sk-xxx"
+# qwen = "sk-xxx"
+
+[llm.ollama_config]
+base_url = "http://localhost:11434"
+default_model = "qwen3.6:27b"
+# 可选模型: qwen3.5:9b, qwen3.6:27b, gemma4-e2b, gemma4-26b-moe, gemma4-31b
+
+# === 安全配置 ===
+[security]
+mode = "standard"
+# standard: 标准沙箱 (推荐)
+# strict: 严格模式 (所有操作需确认)
+# permissive: 宽松模式 (开发用)
+
+# === 通讯渠道 ===
+[channels]
+# 已接入的渠道 (取消注释启用)
+# qqbot = "token_here"
+# telegram = "bot_token_here"
+# wechat = "config_here"
+
+# === 记忆系统 ===
+[memory]
+data_dir = "D:\\openagent\\workspace\\memory"
+max_memories = 10000
+
+# === Token 预算 ===
+[governor]
+daily_budget = 100000  # 每日Token上限

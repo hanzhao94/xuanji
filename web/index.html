@@ -1,0 +1,877 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>玄机 - 具身智能多Agent框架</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --ink-black: #1a1a1a;
+            --ink-gray: #4a4a4a;
+            --ink-light: #8a8a8a;
+            --paper-white: #f5f0e8;
+            --paper-dark: #e8e0d0;
+            --accent-gold: #c9a96e;
+            --accent-red: #c23b22;
+            --accent-blue: #4a7c9b;
+        }
+        
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+            background: var(--paper-white);
+            color: var(--ink-black);
+            overflow-x: hidden;
+        }
+        
+        /* 水墨背景 */
+        .ink-bg {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -1;
+            background: 
+                radial-gradient(ellipse at 20% 50%, rgba(26,26,26,0.03) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(26,26,26,0.02) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(26,26,26,0.02) 0%, transparent 50%);
+        }
+        
+        /* 导航栏 */
+        .nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 60px;
+            background: rgba(245,240,232,0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(26,26,26,0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            z-index: 1000;
+        }
+        
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .taiji {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: conic-gradient(var(--ink-black) 0deg 180deg, var(--paper-white) 180deg 360deg);
+            position: relative;
+            animation: rotate 20s linear infinite;
+        }
+        
+        .taiji::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 25%;
+            width: 12px; height: 12px;
+            background: var(--paper-white);
+            border-radius: 50%;
+            transform: translateY(-50%);
+        }
+        
+        .taiji::after {
+            content: '';
+            position: absolute;
+            top: 50%; right: 25%;
+            width: 12px; height: 12px;
+            background: var(--ink-black);
+            border-radius: 50%;
+            transform: translateY(-50%);
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .nav-title {
+            font-size: 20px;
+            font-weight: bold;
+            letter-spacing: 4px;
+        }
+        
+        .nav-links {
+            margin-left: auto;
+            display: flex;
+            gap: 24px;
+        }
+        
+        .nav-links a {
+            text-decoration: none;
+            color: var(--ink-gray);
+            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .nav-links a:hover, .nav-links a.active {
+            color: var(--ink-black);
+            background: rgba(26,26,26,0.05);
+        }
+        
+        /* 主内容区 */
+        .main {
+            margin-top: 60px;
+            padding: 30px;
+        }
+        
+        /* 页面容器 */
+        .page {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* 仪表盘 */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .card-title {
+            font-size: 12px;
+            color: var(--ink-light);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .card-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--ink-black);
+        }
+        
+        .card-sub {
+            font-size: 13px;
+            color: var(--ink-light);
+            margin-top: 8px;
+        }
+        
+        .card-icon {
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+        
+        /* 状态指示 */
+        .status-dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-dot.green { background: #4caf50; }
+        .status-dot.yellow { background: #ffc107; }
+        .status-dot.red { background: #f44336; }
+        
+        /* 表格 */
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        
+        .table th, .table td {
+            padding: 14px 20px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .table th {
+            background: var(--paper-dark);
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--ink-gray);
+        }
+        
+        .table tr:hover {
+            background: rgba(0,0,0,0.02);
+        }
+        
+        /* 标签 */
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .tag.green { background: #e8f5e9; color: #2e7d32; }
+        .tag.blue { background: #e3f2fd; color: #1565c0; }
+        .tag.orange { background: #fff3e0; color: #e65100; }
+        .tag.red { background: #ffebee; color: #c62828; }
+        
+        /* 进度条 */
+        .progress {
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .progress-bar.green { background: linear-gradient(90deg, #4caf50, #81c784); }
+        .progress-bar.blue { background: linear-gradient(90deg, #2196f3, #64b5f6); }
+        .progress-bar.orange { background: linear-gradient(90deg, #ff9800, #ffb74d); }
+        
+        /* 日志 */
+        .log-container {
+            background: var(--ink-black);
+            color: #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .log-line {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .log-time { color: #888; }
+        .log-info { color: #4fc3f7; }
+        .log-success { color: #81c784; }
+        .log-warn { color: #ffb74d; }
+        .log-error { color: #e57373; }
+        
+        /* 按钮 */
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        
+        .btn-primary {
+            background: var(--ink-black);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--ink-gray);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--ink-black);
+            color: var(--ink-black);
+        }
+        
+        .btn-outline:hover {
+            background: var(--ink-black);
+            color: white;
+        }
+        
+        /* 章节标题 */
+        .section-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--ink-black);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        /* 网格布局 */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-2, .grid-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* 水墨装饰 */
+        .ink-decoration {
+            position: relative;
+            padding-left: 16px;
+        }
+        
+        .ink-decoration::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(180deg, var(--ink-black), transparent);
+            border-radius: 2px;
+        }
+        
+        /* 终端样式 */
+        .terminal {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: "Consolas", monospace;
+            font-size: 13px;
+            overflow-x: auto;
+        }
+        
+        .terminal .prompt { color: #4ec9b0; }
+        .terminal .cmd { color: #dcdcaa; }
+        .terminal .output { color: #ce9178; }
+    </style>
+</head>
+<body>
+    <div class="ink-bg"></div>
+    
+    <!-- 导航栏 -->
+    <nav class="nav">
+        <div class="nav-logo">
+            <div class="taiji"></div>
+            <span class="nav-title">玄机</span>
+        </div>
+        <div class="nav-links">
+            <a href="#" class="active" data-page="dashboard">仪表盘</a>
+            <a href="#" data-page="agents">Agent管理</a>
+            <a href="#" data-page="channels">通讯渠道</a>
+            <a href="#" data-page="llm">模型管理</a>
+            <a href="#" data-page="memory">记忆系统</a>
+            <a href="#" data-page="security">安全中心</a>
+            <a href="#" data-page="logs">运行日志</a>
+        </div>
+    </nav>
+    
+    <!-- 主内容 -->
+    <div class="main">
+        <!-- 仪表盘 -->
+        <div id="page-dashboard" class="page active">
+            <h2 class="section-title">📊 运行仪表盘</h2>
+            
+            <div class="dashboard-grid">
+                <div class="card">
+                    <div class="card-icon">🤖</div>
+                    <div class="card-title">Agent状态</div>
+                    <div class="card-value">5 <span style="font-size:16px;color:#888">/ 5 在线</span></div>
+                    <div class="card-sub">
+                        <span class="status-dot green"></span>灵明本体 · 工程Agent · 创作Agent · 联网Agent · 守护Agent
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-icon">🧠</div>
+                    <div class="card-title">记忆系统</div>
+                    <div class="card-value">15,075</div>
+                    <div class="card-sub">L1: 0 | L2: 0 | L3: 15,075 | 永久: 10</div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-icon">🔒</div>
+                    <div class="card-title">安全评分</div>
+                    <div class="card-value">92</div>
+                    <div class="progress"><div class="progress-bar green" style="width:92%"></div></div>
+                    <div class="card-sub">网安: 正常 | 运维: 健康 | Geo: 防护中</div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-icon">💰</div>
+                    <div class="card-title">Token消耗</div>
+                    <div class="card-value">28,391</div>
+                    <div class="card-sub">今日: 28,391 | 预算: 100,000 | 剩余: 71,609</div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-icon">🌐</div>
+                    <div class="card-title">通讯渠道</div>
+                    <div class="card-value">28</div>
+                    <div class="card-sub">国内10 | 国外14 | 通用4</div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-icon">🧬</div>
+                    <div class="card-title">LLM适配器</div>
+                    <div class="card-value">27</div>
+                    <div class="card-sub">国内13 | 国外11 | 本地3</div>
+                </div>
+            </div>
+            
+            <!-- 系统资源 -->
+            <div class="grid-2">
+                <div class="card">
+                    <h3 style="margin-bottom:16px">💻 系统资源</h3>
+                    <div style="margin-bottom:12px">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                            <span>CPU</span><span>35%</span>
+                        </div>
+                        <div class="progress"><div class="progress-bar blue" style="width:35%"></div></div>
+                    </div>
+                    <div style="margin-bottom:12px">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                            <span>内存</span><span>62%</span>
+                        </div>
+                        <div class="progress"><div class="progress-bar blue" style="width:62%"></div></div>
+                    </div>
+                    <div style="margin-bottom:12px">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                            <span>磁盘</span><span>45%</span>
+                        </div>
+                        <div class="progress"><div class="progress-bar green" style="width:45%"></div></div>
+                    </div>
+                    <div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                            <span>GPU 0 (5060Ti)</span><span>78%</span>
+                        </div>
+                        <div class="progress"><div class="progress-bar orange" style="width:78%"></div></div>
+                    </div>
+                    <div style="margin-top:8px">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                            <span>GPU 1 (3060)</span><span>65%</span>
+                        </div>
+                        <div class="progress"><div class="progress-bar orange" style="width:65%"></div></div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3 style="margin-bottom:16px">📋 最近任务</h3>
+                    <table class="table">
+                        <thead>
+                            <tr><th>任务</th><th>状态</th><th>耗时</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>股票分析</td><td><span class="tag green">完成</span></td><td>60.9s</td></tr>
+                            <tr><td>电影调查</td><td><span class="tag green">完成</span></td><td>38.2s</td></tr>
+                            <tr><td>联网搜索</td><td><span class="tag green">完成</span></td><td>55.6s</td></tr>
+                            <tr><td>TODO开发</td><td><span class="tag green">完成</span></td><td>72.4s</td></tr>
+                            <tr><td>PyPI分析</td><td><span class="tag green">完成</span></td><td>28.8s</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Agent管理 -->
+        <div id="page-agents" class="page">
+            <h2 class="section-title">🤖 Agent管理</h2>
+            
+            <div class="dashboard-grid">
+                <div class="card ink-decoration">
+                    <h3>灵明本体</h3>
+                    <p style="color:#888;margin:8px 0">决策/记忆/进化/核心思考</p>
+                    <div style="margin-top:12px">
+                        <span class="tag green">运行中</span>
+                        <span class="tag blue">Gen 7497</span>
+                    </div>
+                </div>
+                
+                <div class="card ink-decoration">
+                    <h3>工程Agent</h3>
+                    <p style="color:#888;margin:8px 0">写代码/跑测试/编译/部署</p>
+                    <div style="margin-top:12px">
+                        <span class="tag green">运行中</span>
+                        <span class="tag blue">3任务完成</span>
+                    </div>
+                </div>
+                
+                <div class="card ink-decoration">
+                    <h3>创作Agent</h3>
+                    <p style="color:#888;margin:8px 0">小说/动漫/内容生成</p>
+                    <div style="margin-top:12px">
+                        <span class="tag green">运行中</span>
+                        <span class="tag blue">2报告生成</span>
+                    </div>
+                </div>
+                
+                <div class="card ink-decoration">
+                    <h3>联网Agent</h3>
+                    <p style="color:#888;margin:8px 0">搜索/下载/API/监控</p>
+                    <div style="margin-top:12px">
+                        <span class="tag green">运行中</span>
+                        <span class="tag blue">5次搜索</span>
+                    </div>
+                </div>
+                
+                <div class="card ink-decoration">
+                    <h3>守护Agent</h3>
+                    <p style="color:#888;margin:8px 0">健康监控/安全巡检</p>
+                    <div style="margin-top:12px">
+                        <span class="tag green">运行中</span>
+                        <span class="tag blue">0告警</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top:20px">
+                <h3 style="margin-bottom:16px">📊 Agent资源使用</h3>
+                <table class="table">
+                    <thead>
+                        <tr><th>Agent</th><th>CPU</th><th>内存</th><th>GPU</th><th>任务数</th><th>成功率</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>灵明本体</td><td>12%</td><td>2.1GB</td><td>45%</td><td>47</td><td>98%</td></tr>
+                        <tr><td>工程Agent</td><td>8%</td><td>1.2GB</td><td>15%</td><td>15</td><td>100%</td></tr>
+                        <tr><td>创作Agent</td><td>5%</td><td>0.8GB</td><td>20%</td><td>8</td><td>100%</td></tr>
+                        <tr><td>联网Agent</td><td>3%</td><td>0.5GB</td><td>0%</td><td>12</td><td>100%</td></tr>
+                        <tr><td>守护Agent</td><td>2%</td><td>0.3GB</td><td>0%</td><td>156</td><td>100%</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- 通讯渠道 -->
+        <div id="page-channels" class="page">
+            <h2 class="section-title">💬 通讯渠道</h2>
+            
+            <div class="grid-3">
+                <div class="card">
+                    <h3>🇨🇳 国内渠道 (10)</h3>
+                    <div style="margin-top:12px">
+                        <span class="tag green">微信</span>
+                        <span class="tag green">QQ</span>
+                        <span class="tag green">钉钉</span>
+                        <span class="tag green">飞书</span>
+                        <span class="tag green">企业微信</span>
+                        <span class="tag green">微博</span>
+                        <span class="tag green">抖音</span>
+                        <span class="tag green">B站</span>
+                        <span class="tag green">小红书</span>
+                        <span class="tag green">短信</span>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>🌍 国外渠道 (14)</h3>
+                    <div style="margin-top:12px">
+                        <span class="tag green">Telegram</span>
+                        <span class="tag green">Discord</span>
+                        <span class="tag green">WhatsApp</span>
+                        <span class="tag green">Slack</span>
+                        <span class="tag green">Signal</span>
+                        <span class="tag green">iMessage</span>
+                        <span class="tag green">Twitter</span>
+                        <span class="tag green">Instagram</span>
+                        <span class="tag green">Facebook</span>
+                        <span class="tag green">Line</span>
+                        <span class="tag green">Matrix</span>
+                        <span class="tag green">Mattermost</span>
+                        <span class="tag green">Teams</span>
+                        <span class="tag green">Email</span>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>🔌 通用协议 (4)</h3>
+                    <div style="margin-top:12px">
+                        <span class="tag green">IRC</span>
+                        <span class="tag green">XMPP</span>
+                        <span class="tag green">WebSocket</span>
+                        <span class="tag green">Webhook</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 模型管理 -->
+        <div id="page-llm" class="page">
+            <h2 class="section-title">🧠 模型管理</h2>
+            
+            <div class="grid-2">
+                <div class="card">
+                    <h3>🇨🇳 国内模型 (13)</h3>
+                    <table class="table" style="margin-top:12px">
+                        <thead><tr><th>模型</th><th>状态</th></tr></thead>
+                        <tbody>
+                            <tr><td>DeepSeek</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>通义千问</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>智谱GLM</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>百度文心</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>月之暗面</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>MiniMax</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>讯飞星火</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>百川</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>零一万物</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>阶跃星辰</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>豆包</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>腾讯混元</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>商汤</td><td><span class="tag green">可用</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="card">
+                    <h3>🌍 国外/本地模型 (14)</h3>
+                    <table class="table" style="margin-top:12px">
+                        <thead><tr><th>模型</th><th>状态</th></tr></thead>
+                        <tbody>
+                            <tr><td>OpenAI GPT-4o</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>Claude</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>Google Gemini</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>xAI Grok</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>Ollama (本地)</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>llama.cpp</td><td><span class="tag green">可用</span></td></tr>
+                            <tr><td>vLLM</td><td><span class="tag green">可用</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 记忆系统 -->
+        <div id="page-memory" class="page">
+            <h2 class="section-title">💾 记忆系统</h2>
+            
+            <div class="dashboard-grid">
+                <div class="card">
+                    <div class="card-title">L1 工作记忆</div>
+                    <div class="card-value">0</div>
+                    <div class="card-sub">当前任务上下文</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">L2 短期记忆</div>
+                    <div class="card-value">0</div>
+                    <div class="card-sub">当天活跃</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">L3 长期记忆</div>
+                    <div class="card-value">15,075</div>
+                    <div class="card-sub">永久存储</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">
+                    <div class="card-value">2,100</div>
+                    <div class="card-sub">突触: 6,500</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 style="margin-bottom:16px">📋 最近记忆</h3>
+                <table class="table">
+                    <thead><tr><th>内容</th><th>重要度</th><th>标签</th><th>时间</th></tr></thead>
+                    <tbody>
+                        <tr><td>股票分析要包含MA/RSI/MACD等技术指标</td><td><span class="tag orange">8</span></td><td>stock, analysis</td><td>刚刚</td></tr>
+                        <tr><td>国内外电影市场差异很大，要分开分析</td><td><span class="tag orange">8</span></td><td>movie, market</td><td>1小时前</td></tr>
+                        <tr><td>写代码要加错误处理</td><td><span class="tag orange">8</span></td><td>coding</td><td>2小时前</td></tr>
+                        <tr><td>投资建议要基于数据，注明风险</td><td><span class="tag red">9</span></td><td>stock, advice</td><td>3小时前</td></tr>
+                        <tr><td>生成报告要用Markdown格式，包含表格</td><td><span class="tag blue">6</span></td><td>report, format</td><td>4小时前</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- 安全中心 -->
+        <div id="page-security" class="page">
+            <h2 class="section-title">🔒 安全中心</h2>
+            
+            <div class="dashboard-grid">
+                <div class="card">
+                    <div class="card-title">安全评分</div>
+                    <div class="card-value">92</div>
+                    <div class="progress"><div class="progress-bar green" style="width:92%"></div></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">拦截攻击</div>
+                    <div class="card-value">0</div>
+                    <div class="card-sub">今日无攻击</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">封禁IP</div>
+                    <div class="card-value">0</div>
+                    <div class="card-sub">无异常IP</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">审计日志</div>
+                    <div class="card-value">156</div>
+                    <div class="card-sub">今日操作记录</div>
+                </div>
+            </div>
+            
+            <div class="grid-2">
+                <div class="card">
+                    <h3 style="margin-bottom:16px">🛡️ 安全层级</h3>
+                    <table class="table">
+                        <thead><tr><th>层级</th><th>状态</th></tr></thead>
+                        <tbody>
+                            <tr><td>L1 沙箱</td><td><span class="tag green">正常</span></td></tr>
+                            <tr><td>L2 操作分级</td><td><span class="tag green">正常</span></td></tr>
+                            <tr><td>L3 网络安全</td><td><span class="tag green">正常</span></td></tr>
+                            <tr><td>L4 插件安全</td><td><span class="tag green">正常</span></td></tr>
+                            <tr><td>L5 输入消毒</td><td><span class="tag green">正常</span></td></tr>
+                            <tr><td>L6密钥管理</td><td><span class="tag green">正常</span></td></tr>
+                            <tr><td>L7审计日志</td><td><span class="tag green">正常</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="card">
+                    <h3 style="margin-bottom:16px">🌐 Geo防护</h3>
+                    <table class="table">
+                        <thead><tr><th>项目</th><th>状态</th></tr></thead>
+                        <tbody>
+                            <tr><td>时区伪装</td><td>UTC</td></tr>
+                            <tr><td>语言伪装</td><td>en-US</td></tr>
+                            <tr><td>代理</td><td>未配置</td></tr>
+                            <tr><td>路由条目</td><td>0</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 运行日志 -->
+        <div id="page-logs" class="page">
+            <h2 class="section-title">📋 运行日志</h2>
+            
+            <div class="log-container" id="log-container">
+                <div class="log-line"><span class="log-time">[19:25:31]</span> <span class="log-info">[INFO]</span> 玄机 v1.0.0 启动</div>
+                <div class="log-line"><span class="log-time">[19:25:31]</span> <span class="log-success">[OK]</span> MemoryManager 已启动</div>
+                <div class="log-line"><span class="log-time">[19:25:31]</span> <span class="log-success">[OK]</span> 
+                <div class="log-line"><span class="log-time">[19:25:31]</span> <span class="log-success">[OK]</span> 
+                <div class="log-line"><span class="log-time">[19:25:31]</span> <span class="log-success">[OK]</span> 
+                <div class="log-line"><span class="log-time">[19:25:31]</span> <span class="log-success">[OK]</span> 
+                <div class="log-line"><span class="log-time">[19:25:31]</span> <span class="log-success">[OK]</span> 
+                <div class="log-line"><span class="log-time">[19:25:31]</span> <span class="log-success">[OK]</span> 
+                <div class="log-line"><span class="log-time">[19:25:31]</span> <span class="log-success">[OK]</span> 
+                <div class="log-line"><span class="log-time">[19:25:32]</span> <span class="log-info">[INFO]</span> 同步10条灵魂法则到记忆</div>
+                <div class="log-line"><span class="log-time">[19:25:32]</span> <span class="log-info">[INFO]</span> 同步3个文化内核到记忆</div>
+                <div class="log-line"><span class="log-time">[19:25:32]</span> <span class="log-info">[INFO]</span> 同步4个思维模式到记忆</div>
+                <div class="log-line"><span class="log-time">[19:25:32]</span> <span class="log-success">[OK]</span> 玄机本体接入完成</div>
+                <div class="log-line"><span class="log-time">[19:25:33]</span> <span class="log-info">[INFO]</span> 开始联网搜索: AI Agent框架趋势</div>
+                <div class="log-line"><span class="log-time">[19:25:35]</span> <span class="log-success">[OK]</span> 搜索到5个结果</div>
+                <div class="log-line"><span class="log-time">[19:25:38]</span> <span class="log-success">[OK]</span> 抓取3个网页成功</div>
+                <div class="log-line"><span class="log-time">[19:25:40]</span> <span class="log-success">[OK]</span> 深度阅读完成</div>
+                <div class="log-line"><span class="log-time">[19:25:45]</span> <span class="log-info">[INFO]</span> LLM分析完成 (1672 tokens)</div>
+                <div class="log-line"><span class="log-time">[19:25:48]</span> <span class="log-success">[OK]</span> 报告生成完成 (767字符)</div>
+                <div class="log-line"><span class="log-time">[19:25:48]</span> <span class="log-success">[OK]</span> 记忆沉淀完成</div>
+            </div>
+            
+            <div style="margin-top:16px;display:flex;gap:12px">
+                <button class="btn btn-primary" onclick="clearLogs()">🗑️ 清空日志</button>
+                <button class="btn btn-outline" onclick="exportLogs()">📥 导出日志</button>
+                <button class="btn btn-outline" onclick="toggleAutoScroll()">🔄 自动滚动</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 页面切换
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = link.dataset.page;
+                
+                // 切换导航高亮
+                document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+                link.classList.add('active');
+                
+                // 切换页面
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.getElementById('page-' + page).classList.add('active');
+            });
+        });
+        
+        // 日志功能
+        function clearLogs() {
+            document.getElementById('log-container').innerHTML = '';
+        }
+        
+        function exportLogs() {
+            const logs = document.getElementById('log-container').innerText;
+            const blob = new Blob([logs], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'xuanji_logs_' + new Date().toISOString().slice(0,10) + '.txt';
+            a.click();
+        }
+        
+        let autoScroll = false;
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            if (autoScroll) {
+                const container = document.getElementById('log-container');
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+        
+        // 模拟实时日志
+        const logMessages = [
+            { type: 'info', msg: '心跳检测: 所有Agent正常' },
+            { type: 'success', msg: '记忆同步完成' },
+            { type: 'info', msg: '安全扫描: 无异常' },
+            { type: 'success', msg: '备份完成' },
+            { type: 'info', msg: 'Token消耗: 今日 28,391 / 100,000' },
+        ];
+        
+        let logIndex = 0;
+        setInterval(() => {
+            if (logIndex < logMessages.length) {
+                const log = logMessages[logIndex];
+                const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+                const typeClass = log.type === 'success' ? 'log-success' : 'log-info';
+                const typeLabel = log.type === 'success' ? '[OK]' : '[INFO]';
+                
+                const container = document.getElementById('log-container');
+                const line = document.createElement('div');
+                line.className = 'log-line';
+                line.innerHTML = `<span class="log-time">[${time}]</span> <span class="${typeClass}">${typeLabel}</span> ${log.msg}`;
+                container.appendChild(line);
+                
+                if (autoScroll) {
+                    container.scrollTop = container.scrollHeight;
+                }
+                
+                logIndex++;
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

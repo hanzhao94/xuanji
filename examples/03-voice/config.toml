@@ -1,0 +1,22 @@
+# 03-voice — 语音对话Agent 配置
+
+# LLM（一行配一个）
+[llm]
+dashscope = "sk-your-api-key"
+
+# 语音配置
+[voice]
+stt_engine = "whisper"       # 语音识别: whisper / openai_whisper_api
+tts_engine = "piper"         # 语音合成: piper / system
+wake_word = "你好玄机"        # 唤醒词
+
+# 设备配置
+[voice.device]
+mic_device = "default"       # 默认麦克风
+speaker_device = "default"   # 默认扬声器
+sample_rate = 16000          # 采样率
+
+# 可选：OpenAI Whisper API（云端识别）
+[voice.openai_whisper]
+api_key = "sk-your-openai-key"
+model = "whisper-1"
