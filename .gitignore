@@ -46,8 +46,8 @@ HEARTBEAT.md
 skills/
 nmm_schema/
 nmm_schema_bridge.py
-memory/
-memory_archive/
+/memory/
+/memory_archive/
 data/
 logs/
 reports/
