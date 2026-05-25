@@ -83,16 +83,10 @@ class ToolRegistry:
         return list(self._tools.values())
     
     def to_prompt(self) -> str:
-        """生成工具描述文本，注入到LLM prompt"""
-        lines = ["可用工具列表："]
+        """生成工具描述文本，注入到LLM prompt（紧凑格式）"""
+        lines = []
         for t in self._tools.values():
             lines.append(f"- {t['name']}: {t['description']}")
-            if t['params'].get('properties'):
-                params = t['params']['properties']
-                for pname, pinfo in params.items():
-                    desc = pinfo.get('description', '')
-                    required = pname in t['params'].get('required', [])
-                    lines.append(f"    - {pname}: {desc}{' (必填)' if required else ''}")
         return "\n".join(lines)
     
     def execute(self, name: str, **kwargs) -> str:
@@ -122,30 +116,22 @@ class ToolRegistry:
 
 SYSTEM_PROMPT = """你是一个智能助手。你需要根据用户的指令，一步步思考并执行任务。
 
-## 工作规则
-1. 先思考（thought），再决定行动（action）
-2. 每次只能调用一个工具
-3. 根据工具返回结果，决定下一步或给出最终回答
-4. 如果信息足够回答用户，立即给出回答
+## 输出格式（铁律！）
+你必须且只能输出以下JSON格式，不要输出任何其他文字：
+{{"thought": "思考", "action": "工具名", "action_input": {{参数}}, "answer": "完成时填写，否则空字符串"}}
 
-## 输出格式
-你每次必须输出以下JSON格式：
-```json
-{{
-    "thought": "你的思考过程",
-    "action": "工具名（从可用工具中选择）",
-    "action_input": {{工具参数}},
-    "answer": "如果任务完成，在这里写出给用户的回答；否则留空字符串"
-}}
+## 工作规则
+1. 每次只调用一个工具
+2. 根据结果决定下一步
+3. 信息足够时立即填写answer字段
+4. 只用JSON回复，不要markdown代码块，不要额外文字
 
 ## 可用工具
 {tools}
 
-## 重要规则
-- 只用JSON格式回复
-- 任务完成时必须填写answer字段
-- 不要编造工具返回的结果，必须基于实际执行结果
-- 如果某个工具执行失败，尝试用其他方式完成任务
+## 注意
+- 不要编造结果
+- 工具失败就换其他方式
 """
 
 

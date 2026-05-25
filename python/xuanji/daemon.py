@@ -27,6 +27,137 @@ from urllib.parse import urlparse, parse_qs
 import logging
 logger = logging.getLogger("xuanji.daemon")
 
+
+# ─────────────────────────────────────────────
+# 统一工具注册 — 把所有散落的能力串成一条线
+# ─────────────────────────────────────────────
+
+def _register_all_tools(registry, memory_manager=None, persona_lib=None, task_text=""):
+    """统一注册所有可用工具到Agent
+
+    包含：
+    - 9个基础工具（搜索/网页/文件/Shell/Python/天气/计算）
+    - 4个记忆工具（remember/search_memory/forget/list_memories）
+    - 5个浏览器工具（navigate/get_text/get_info/fill/click）
+    - 4个桌面操控（鼠标移动/点击/键盘输入/热键）
+    - 3个截屏工具（截屏/屏幕信息/区域截图）
+    - 2个语音工具（TTS/STT）
+
+    总计：27个工具
+    """
+    # 基础工具
+    try:
+        from xuanji.natural_agent import register_builtin_tools
+        register_builtin_tools(registry)
+    except Exception as e:
+        logger.warning(f"Built-in tools failed: {e}")
+
+    # 记忆工具
+    try:
+        from xuanji.agent_tools import register_memory_tools
+        register_memory_tools(registry, memory_manager)
+    except Exception as e:
+        logger.warning(f"Memory tools failed: {e}")
+
+    # 浏览器工具
+    try:
+        from xuanji.agent_tools_v2 import register_browser_tools
+        register_browser_tools(registry)
+    except Exception as e:
+        logger.warning(f"Browser tools failed: {e}")
+
+    # 桌面操控
+    try:
+        from xuanji.agent_tools_v2 import register_hands_tools
+        register_hands_tools(registry)
+    except Exception as e:
+        logger.warning(f"Hands tools failed: {e}")
+
+    # 截屏工具
+    try:
+        from xuanji.agent_tools_v2 import register_perception_tools
+        register_perception_tools(registry)
+    except Exception as e:
+        logger.warning(f"Perception tools failed: {e}")
+
+    # 语音工具
+    try:
+        from xuanji.agent_tools_v2 import register_voice_tools
+        register_voice_tools(registry)
+    except Exception as e:
+        logger.warning(f"Voice tools failed: {e}")
+
+    # 注入Persona系统 prompt（如果匹配到人格）
+    if persona_lib and task_text:
+        try:
+            best = persona_lib.suggest(task_text)
+            if best:
+                p = best[0]
+                logger.info(f"Persona matched: {p.name_cn} ({p.id})")
+                return p
+        except Exception as e:
+            logger.warning(f"Persona matching failed: {e}")
+
+    return None
+
+
+# ─────────────────────────────────────────────
+# 任务复杂度评估 — 自动判断单Agent还是多Agent
+# ─────────────────────────────────────────────
+
+_TASK_COMPLEXITY_KEYWORDS = {
+    "game": 3, "游戏": 3,
+    "网站": 3, "web app": 3, "webapp": 3, "fullstack": 3, "全栈": 3,
+    "小说": 3, "novel": 3, "动漫": 3, "anime": 3,
+    "项目": 2, "project": 2, "系统": 2, "system": 2,
+    "平台": 2, "platform": 2,
+}
+
+_SIMPLE_TASK_KEYWORDS = {
+    "天气": 0, "weather": 0,
+    "搜索": 0, "search": 0,
+    "计算": 0, "calc": 0,
+    "翻译": 0, "translate": 0,
+    "总结": 0, "summarize": 0,
+}
+
+
+def _evaluate_task_complexity(task_text: str) -> tuple:
+    """评估任务复杂度
+
+    Returns:
+        (complexity_score, should_use_team, suggested_roles)
+    """
+    text_lower = task_text.lower()
+
+    score = 1
+    roles = None
+
+    for kw, s in _SIMPLE_TASK_KEYWORDS.items():
+        if kw in text_lower:
+            return (0, False, None)
+
+    for kw, s in _TASK_COMPLEXITY_KEYWORDS.items():
+        if kw in text_lower:
+            score += s
+
+    if score >= 3:
+        if "游戏" in text_lower or "game" in text_lower:
+            roles = ["pm", "game-designer", "developer"]
+        elif "网站" in text_lower or "web" in text_lower:
+            roles = ["pm", "architect", "developer", "tester"]
+        elif "小说" in text_lower or "novel" in text_lower:
+            roles = ["pm", "writer", "reviewer"]
+        elif "项目" in text_lower or "project" in text_lower:
+            roles = ["pm", "developer", "tester"]
+        else:
+            roles = ["pm", "developer"]
+        return (score, True, roles)
+    elif score >= 2:
+        return (score, True, ["pm", "developer"])
+    else:
+        return (score, False, None)
+
 # ─────────────────────────────────────────────
 # PID 文件管理
 # ─────────────────────────────────────────────
@@ -153,6 +284,7 @@ class XuanJiEngine:
         self.config_path = config_path or "config.toml"
         self.config = {}
         self.task_db = TaskDB()
+        self._arbiter = None  # 资源仲裁器
         self._llm_adapter = None
         self._llm_model = ""
         self._running = False
@@ -160,14 +292,19 @@ class XuanJiEngine:
         self._ready = False
     
     def initialize(self):
-        """加载配置，初始化LLM"""
+        """加载配置，初始化LLM + Arbiter"""
         # 加载配置
         self.config = self._load_config()
         llm_cfg = self.config.get("llm", {})
-        
+
+        # 初始化资源仲裁器
+        from xuanji.arbiter import ResourceArbiter
+        self._arbiter = ResourceArbiter()
+        logger.info("ResourceArbiter initialized")
+
         # 自动检测LLM
         self._llm_adapter, self._llm_model = self._auto_detect_llm(llm_cfg)
-        
+
         if self._llm_adapter:
             logger.info(f"LLM ready: {self._llm_model}")
             self._ready = True
@@ -301,12 +438,47 @@ class XuanJiEngine:
         start = time.time()
         try:
             from xuanji.agent_runner import AgentRunner
-            
-            # 创建AgentRunner
-            runner = AgentRunner(self._llm_adapter, model=self._llm_model, max_steps=20)
-            
-            # 执行任务
-            result = await runner.run(task["task"])
+            from xuanji.persona_library import PersonaLibrary
+
+            # 1. 评估任务复杂度
+            complexity, should_team, roles = _evaluate_task_complexity(task["task"])
+
+            # 2. 统一工具注册 - 27个工具全部注入
+            runner = AgentRunner(self._llm_adapter, model=self._llm_model, max_steps=25)
+            persona_lib = PersonaLibrary()
+            matched_persona = _register_all_tools(
+                runner.registry,
+                persona_lib=persona_lib,
+                task_text=task["task"]
+            )
+
+            # 3. 如果匹配到专家人格，注入系统prompt
+            if matched_persona:
+                runner._system_prompt = (
+                    matched_persona.system_prompt + "\n\n"
+                    + runner._system_prompt
+                )
+                runner._update_system_prompt()
+                task["persona"] = matched_persona.name_cn
+                logger.info(
+                    f"[Task {task_id}] Persona: {matched_persona.name_cn}, "
+                    f"Complexity: {complexity}, Team: {should_team}"
+                )
+            else:
+                runner._update_system_prompt()
+                logger.info(
+                    f"[Task {task_id}] Complexity: {complexity}, Team: {should_team}"
+                )
+
+            # 4. 执行任务
+            if should_team and roles and self._arbiter:
+                # 复杂任务：自动组队 + 并行执行
+                result = await self._run_team_task(
+                    task, roles, matched_persona
+                )
+            else:
+                # 简单任务：单Agent直接执行
+                result = await runner.run(task["task"])
             
             elapsed = time.time() - start
             steps_data = []
@@ -337,6 +509,136 @@ class XuanJiEngine:
                 finished_at=time.time(),
             )
     
+    async def _run_team_task(self, task: dict, roles: list, persona) -> object:
+        """多Agent团队执行复杂任务
+
+        流程：
+        1. 创建TeamProject + 快速组队
+        2. LLM分解任务（带依赖关系）
+        3. 为每个角色注入对应Persona + 工具
+        4. 并行执行（依赖满足的自动排布）
+        5. Arbiter管冲突（屏幕/鼠标独占资源排队）
+        6. 汇总交付
+        """
+        from xuanji.team import TeamEngine, Role
+        from xuanji.agent_runner import AgentRunner
+        from xuanji.persona_library import PersonaLibrary
+
+        task_id = task.get("id", "?")
+        logger.info(f"[Task {task_id}] Team mode: roles={roles}")
+
+        # 创建引擎 + 项目
+        engine = TeamEngine(arbiter=self._arbiter)
+        project = engine.create_project(
+            name=task["task"][:40],
+            description=task["task"]
+        )
+
+        # 快速组队
+        engine.quick_team(project, roles)
+        logger.info(f"[Task {task_id}] Team members: {list(project.members.keys())}")
+
+        # 设置执行器：每个团队任务由AgentRunner执行
+        engine.set_executor(self._team_task_executor)
+
+        # 执行项目
+        result = await engine.run_project(
+            project,
+            llm_adapter=self._llm_adapter,
+            max_parallel=2,
+            timeout=300,
+        )
+
+        # 汇总结果
+        summary_parts = []
+        summary_parts.append(f"项目: {project.name}")
+        summary_parts.append(f"状态: {project.status}")
+        steps = []
+        for t in project.tasks.values():
+            status_icon = {"done": "OK", "failed": "FAIL", "running": ".."}.get(t.status, "?")
+            summary_parts.append(f"  [{status_icon}] {t.title} - {t.assignee or 'unassigned'}")
+            if t.result:
+                summary_parts.append(f"    {t.result[:200]}")
+            steps.append(type('Step', (), {
+                'step_num': 0,
+                'thought': f"{t.assignee}({t.role.value}): {t.title}",
+                'action': 'team_task',
+                'observation': t.result[:300] if t.result else '',
+            })())
+
+        class TeamResult:
+            def __init__(self):
+                self.answer = "\n".join(summary_parts)
+                self.steps = steps
+
+        return TeamResult()
+
+    def _team_task_executor(self, team_task, member, project):
+        """团队任务执行器：用AgentRunner执行单个团队任务
+
+        每个角色有独立的Persona + 工具集
+        """
+        async def _execute():
+            from xuanji.agent_runner import AgentRunner
+            from xuanji.persona_library import PersonaLibrary
+
+            try:
+                # 角色 -> Persona映射
+                role_persona_id = {
+                    "pm": "project-manager",
+                    "architect": "ai-engineer",
+                    "developer": "ai-engineer",
+                    "dev": "ai-engineer",
+                    "tester": "qa-engineer",
+                    "test": "qa-engineer",
+                    "reviewer": "code-reviewer",
+                    "designer": "ui-designer",
+                    "game-designer": "game-designer",
+                    "researcher": "researcher",
+                    "writer": "content-writer-master",
+                }
+
+                persona_id = role_persona_id.get(member.role.value, "general-assistant")
+
+                # 创建AgentRunner + 注册工具
+                runner = AgentRunner(self._llm_adapter, model=self._llm_model, max_steps=15)
+                persona_lib = PersonaLibrary()
+                persona = persona_lib.get(persona_id)
+
+                _register_all_tools(runner.registry)
+
+                # 注入角色Persona
+                if persona:
+                    runner._system_prompt = (
+                        persona.system_prompt + "\n\n" + runner._system_prompt
+                    )
+                    runner._update_system_prompt()
+                else:
+                    runner._update_system_prompt()
+
+                # 组装任务描述
+                task_text = f"你是{member.name}，角色是{member.role.value}。\n"
+                task_text += f"项目: {project.name}\n"
+                task_text += f"你的任务: {team_task.title}\n"
+                if team_task.description:
+                    task_text += f"详细描述: {team_task.description}\n"
+
+                # 传递前置任务输出
+                if team_task.input_data:
+                    task_text += f"\n前置任务信息: {str(team_task.input_data)[:500]}\n"
+
+                logger.info(f"[Team] Executing: {member.name}({member.role.value}) -> {team_task.title}")
+
+                # 执行
+                result = await runner.run(task_text)
+                logger.info(f"[Team] Done: {member.name} -> {result.answer[:50] if result.answer else 'no answer'}")
+                return result.answer or "任务完成"
+            except Exception as e:
+                logger.error(f"[Team] Executor error: {type(e).__name__}: {e}")
+                raise
+
+        return asyncio.ensure_future(_execute())
+
     def _worker_loop(self):
         """后台任务执行循环"""
         while self._running:
@@ -525,10 +827,10 @@ class DaemonServer:
         self._thread.start()
         
         logger.info(f"Daemon listening on {self.host}:{self.port}")
-        print(f"🚀 玄机守护进程启动")
-        print(f"   📡 HTTP API: http://{self.host}:{self.port}")
-        print(f"   🤖 LLM: {self.engine.llm_info}")
-        print(f"   📊 状态: http://{self.host}:{self.port}/api/status")
+        print(f"[OK] 玄机守护进程启动")
+        print(f"   [API] HTTP API: http://{self.host}:{self.port}")
+        print(f"   [LLM] LLM: {self.engine.llm_info}")
+        print(f"   [STATUS] 状态: http://{self.host}:{self.port}/api/status")
         print()
     
     def stop(self):
@@ -795,10 +1097,19 @@ def cmd_task(args):
 
 def daemon_main():
     """守护进程入口"""
-    # Windows GBK fix
+    # Windows GBK fix (skip if already wrapped by launcher)
     import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    if not isinstance(sys.stdout, io.TextIOWrapper) or sys.stdout.encoding != 'utf-8':
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    if not isinstance(sys.stderr, io.TextIOWrapper) or sys.stderr.encoding != 'utf-8':
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
+    # Setup logging to file
+    logging.basicConfig(
+        filename=str(LOG_FILE),
+        level=logging.INFO,
+        format='%(asctime)s %(name)s %(levelname)s %(message)s',
+    )
     
     config = None
     for i, arg in enumerate(sys.argv):

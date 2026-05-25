@@ -33,7 +33,6 @@ def register_memory_tools(registry, memory_manager=None) -> None:
         try:
             from xuanji.memory.store import MemoryStore
             store = MemoryStore()
-            store.startup()
         except Exception as e:
             logger.warning(f"Memory store unavailable: {e}")
             return
